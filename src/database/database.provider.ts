@@ -18,3 +18,7 @@ export const databaseProvider = {
     return drizzle({ client: pool });
   },
 };
+
+export type Database = ReturnType<
+  typeof databaseProvider.useFactory
+>;

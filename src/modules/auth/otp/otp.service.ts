@@ -12,13 +12,13 @@ interface StoredOTP {
 export class OTPService {
   private readonly OTP_TTL = 5 * 60;
 
-  private readonly RESEND_COOLDOWN = 60;
+  private readonly RESEND_COOLDOWN = 5;
 
-  private readonly REQUEST_LIMIT = 5;
-  private readonly REQUEST_WINDOW = 15 * 60;
+  private readonly REQUEST_WINDOW = 5 * 60;
 
   private readonly MAX_ATTEMPTS = 5;
-  private readonly LOCK_TIME = 15 * 60;
+
+  private readonly LOCK_TIME = 5 * 60;
 
   constructor(private readonly redis: RedisService) {}
 

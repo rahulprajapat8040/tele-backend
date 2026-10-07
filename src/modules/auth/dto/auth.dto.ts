@@ -14,7 +14,7 @@ export class DeviceDTO {
   })
   @IsNotEmpty()
   @IsEnum(DevicePlatform)
-  declare platform: DevicePlatform;
+  platform: DevicePlatform;
 
   @ApiProperty({ example: 'C.2.HX', description: 'device name' })
   @IsNotEmpty()
