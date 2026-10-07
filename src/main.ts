@@ -1,14 +1,21 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const logger = new Logger('TELE_BACKEND');
   const PORT = process.env.PORT;
   const app = await NestFactory.create(AppModule);
-
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      forbidUnknownValues: true,
+    }),
+  );
   const config = new DocumentBuilder()
     .setTitle('Tele Backend APIs')
     .setDescription('Swagger documentation for tele apis')
