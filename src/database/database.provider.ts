@@ -19,6 +19,4 @@ export const databaseProvider = {
   },
 };
 
-export type Database = ReturnType<
-  typeof databaseProvider.useFactory
->;
+export type Database = ReturnType<typeof databaseProvider.useFactory>;
