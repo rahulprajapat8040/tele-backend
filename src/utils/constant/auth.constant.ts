@@ -1,0 +1,4 @@
+export const ACCESS_TOKEN_TTL = '15m';
+export const REFRESH_TOKEN_TTL = '15d';
+export const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000;
+export const REFRESH_TOKEN_TTL_MS = 15 * 24 * 60 * 60 * 1000;

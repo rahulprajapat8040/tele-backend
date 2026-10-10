@@ -66,3 +66,12 @@ export class SignupDTO extends OTPReqDTO {
   @IsNotEmpty()
   otp: string;
 }
+
+export class LoginDTO extends OTPReqDTO {
+  @ApiProperty({
+    example: '232322',
+    description: 'OTP of the user',
+  })
+  @IsNotEmpty()
+  otp: string;
+}
