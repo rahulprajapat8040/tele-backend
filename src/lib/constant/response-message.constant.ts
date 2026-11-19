@@ -1,0 +1,15 @@
+export const RESPONSE_MESSAGE = {
+  OTP_SENT: 'OTP sent successfully.',
+  OTP_VERIFIED: 'OTP verified successfully',
+  PHONE_NOT_FOUND: 'Sorry! We can not find any account with this phone number.',
+  EMAIL_NOT_FOUND: 'Sorry! We can not find any account with this email.',
+  EMAIL_USED: 'This email is alredy used.',
+  PHONE_USED: 'This phone number is alredy used.',
+  USER_LOGGED_IN: 'You logged in successfully',
+  ACCOUNT_CREATED: 'Your account created successfully',
+  NO_CONTACTS: 'No contacts to synchronize',
+  DATA_SYNC: 'Data synced successfully',
+  DATA_ADDED: 'Data added successfully',
+  DATA_FETCHED: 'Data fetched successfully',
+  DATA_UPDATED: 'Data updated successfully',
+};

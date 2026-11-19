@@ -1,0 +1,9 @@
+import Redis from 'ioredis';
+export const REDIS = Symbol('REDIS');
+
+export const redisProvider = {
+  provide: REDIS,
+  useFactory: () => {
+    return new Redis(process.env.REDIS_URL!);
+  },
+};
