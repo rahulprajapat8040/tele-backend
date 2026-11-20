@@ -1,16 +1,31 @@
 import {
   BadRequestException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Conversation, ConversationMember, User } from '../database/models';
+import {
+  Conversation,
+  ConversationMember,
+  Message,
+  User,
+} from '../database/models';
 import { Sequelize } from 'sequelize-typescript';
 import { IAuthUser } from 'src/lib/interfaces/user.interface';
 import { CreatePrivateConversationDTO } from './dto/conversation.dto';
 import { ConversationType, MemberRole } from 'src/lib/enum';
-import { UniqueConstraintError } from 'sequelize';
+import { Op, UniqueConstraintError } from 'sequelize';
+import { CommonQueryDTO } from 'src/common/dto/common-query.dto';
+import {
+  generatePagination,
+  getPagination,
+  responseSender,
+} from 'src/lib/helper/function.helper';
+import { RESPONSE_MESSAGE } from 'src/lib/constant/response-message.constant';
+import { decryptUserPhone } from 'src/lib/helper/encryption.helper';
+import { MessageReceipts } from '../database/models/message-receipts';
 
 @Injectable()
 export class ConversationService {
@@ -144,6 +159,56 @@ export class ConversationService {
       }
       throw error;
     }
+  }
+
+  async getMyConversations(query: CommonQueryDTO, user: IAuthUser) {
+    const { page, limit, offset } = getPagination(query);
+    const res = await this.conversationModel.findAndCountAll({
+      limit,
+      offset,
+      attributes: ['id', 'title', 'createdAt'],
+      include: [
+        {
+          model: this.conversationMemberModel,
+          where: { userId: { [Op.ne]: user.userId }, leftAt: null },
+          attributes: ['id'],
+          include: [
+            {
+              model: this.userModel,
+              attributes: [
+                'id',
+                'firstName',
+                'lastName',
+                'countryCode',
+                'phoneNo',
+              ],
+            },
+          ],
+        },
+        {
+          model: Message,
+          order: [['createdAt', 'DESC']],
+          limit: 1,
+          include: [
+            {
+              model: MessageReceipts,
+              limit: 1,
+              attributes: ['id', 'deliveredAt', 'readAt'],
+            },
+          ],
+        },
+      ],
+    });
+
+    const decryptedUser = decryptUserPhone(res);
+
+    const response = generatePagination(decryptedUser, page, limit);
+    return responseSender(
+      RESPONSE_MESSAGE.DATA_FETCHED,
+      HttpStatus.OK,
+      true,
+      response,
+    );
   }
 
   private generateDirectKey(user1: string, user2: string) {

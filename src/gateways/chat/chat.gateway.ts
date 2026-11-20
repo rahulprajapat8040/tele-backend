@@ -13,11 +13,15 @@ import { Server, Socket } from 'socket.io';
 import { CHAT_EVENTS } from './chat.events';
 import { MessagesService } from 'src/modules/messages/messages.service';
 import { SendMessageDTO } from 'src/modules/messages/dto/messages.dto';
+import { parseCookie } from 'cookie';
+import { Logger } from '@nestjs/common';
+import { ACCESS_TOKEN_KEY } from 'src/lib/constant/constant';
 
 @WebSocketGateway({
   cors: { origin: ['*'], credentials: true },
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  private readonly logger = new Logger(ChatGateway.name);
   @WebSocketServer()
   server: Server;
 
@@ -29,10 +33,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   afterInit(server: Server) {
     server.use(async (socket, next) => {
       try {
-        const token = socket.handshake.auth?.token;
+        // 1. Mobile app: token from handshake.auth
+        let token = socket.handshake.auth?.token;
+
+        // 2. Web app: token from HttpOnly cookie
+        this.logger.log(`Token coming from device ${token}`);
+        if (!token) {
+          const cookies = parseCookie(socket.handshake.headers.cookie || '');
+          token = cookies[ACCESS_TOKEN_KEY]; // Use your actual cookie name
+          this.logger.log(`Token coming from cookies ${token}`);
+        }
+
         if (!token) {
           return next(new Error('Unauthorized'));
         }
+
         const payload = await this.jwtService.verifyAsync(token);
 
         const userId = payload.userId;
@@ -43,9 +58,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         socket.data.user = { userId };
 
-        next();
+        return next();
       } catch (error) {
-        next(new Error('Unauthorized'));
+        return next(new Error('Unauthorized'));
       }
     });
   }
@@ -80,7 +95,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const user = client.data.user;
 
       const message = await this.messageService.sendMessage(user, dto);
-
+      this.logger.log(`Message send by user ${user.userId} ${message}`);
       const recipientIds = await this.messageService.getRecipientUserIds(
         dto.conversationId,
         user.userId,

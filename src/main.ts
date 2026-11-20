@@ -5,6 +5,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import Redis from 'ioredis';
 import { RedisIoAdapter } from './infrastructure/socket/redis-io.adapter';
+import cookieParser from 'cookie-parser';
 
 const logger = new Logger('Telegram Root');
 async function bootstrap() {
@@ -36,6 +37,13 @@ async function bootstrap() {
         whitelist: true,
       }),
     );
+
+    app.enableCors({
+      origin: ['http://localhost:5173'],
+      credentials: true,
+    });
+
+    app.use(cookieParser());
 
     const config = new DocumentBuilder()
       .setTitle('Telegram apis')

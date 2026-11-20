@@ -11,6 +11,7 @@ import {
 import { MODEL_NAME } from 'src/lib/constant/model-name.constant';
 import { ConversationType } from 'src/lib/enum';
 import { ConversationMember } from './conversation-member.model';
+import { Message } from './message.model';
 
 @Table({
   tableName: MODEL_NAME.CONVERSATION,
@@ -46,4 +47,7 @@ export class Conversation extends Model<Conversation, Partial<Conversation>> {
 
   @HasMany(() => ConversationMember)
   declare members: ConversationMember[];
+
+  @HasMany(() => Message)
+  declare messages: Message[];
 }

@@ -26,6 +26,7 @@ import {
 import { RESPONSE_MESSAGE } from 'src/lib/constant/response-message.constant';
 import { Sequelize } from 'sequelize-typescript';
 import { MessageReceipts } from '../database/models/message-receipts';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class MessagesService {
@@ -38,6 +39,7 @@ export class MessagesService {
     private readonly conversationMemberModel: typeof ConversationMember,
     @InjectModel(MessageReceipts)
     private readonly messageReceiptModel: typeof MessageReceipts,
+    private readonly usersService: UsersService,
     private readonly sequelize: Sequelize,
   ) {}
 
@@ -73,6 +75,7 @@ export class MessagesService {
         'You are not allowed to send messages in this conversation',
       );
     }
+    const sender = await this.usersService.getUserProfile(senderId);
 
     // 4. Check whether message was already submitted.
     const existingMessage = await this.messageModel.findOne({
@@ -83,7 +86,12 @@ export class MessagesService {
     });
 
     if (existingMessage) {
-      return existingMessage;
+      this.validateDuplicateMessage(existingMessage, dto, content);
+
+      return responseSender(RESPONSE_MESSAGE.DATA_ADDED, HttpStatus.OK, true, {
+        ...existingMessage.toJSON(),
+        sender,
+      });
     }
 
     try {
@@ -117,11 +125,17 @@ export class MessagesService {
         }
         return newMessage;
       });
+      const response = {
+        ...message.toJSON(),
+        sender,
+        receipts: [],
+      };
+
       return responseSender(
         RESPONSE_MESSAGE.DATA_ADDED,
         HttpStatus.OK,
         true,
-        message,
+        response,
       );
     } catch (error) {
       // Handles simultaneous retry requests.
@@ -135,7 +149,16 @@ export class MessagesService {
 
         if (existing) {
           this.validateDuplicateMessage(existing, dto, content);
-          return existing;
+
+          return responseSender(
+            RESPONSE_MESSAGE.DATA_ADDED,
+            HttpStatus.OK,
+            true,
+            {
+              ...existing.toJSON(),
+              sender,
+            },
+          );
         }
       }
 

@@ -57,7 +57,7 @@ export class ConversationMember extends Model<
 
   @AllowNull
   @Column(DataType.DATE)
-  lastDeliveredAt: Date | null;
+  declare lastDeliveredAt: Date | null;
 
   @AllowNull
   @Column(DataType.UUID)
@@ -65,7 +65,7 @@ export class ConversationMember extends Model<
 
   @AllowNull
   @Column(DataType.DATE)
-  lastReadAt: Date | null;
+  declare lastReadAt: Date | null;
 
   @ForeignKey(() => Conversation)
   @Column(DataType.UUID)

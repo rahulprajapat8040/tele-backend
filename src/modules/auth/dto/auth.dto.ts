@@ -33,10 +33,18 @@ export class DeviceInfoDTO {
 }
 
 export class SendOTPDTO {
-  @ApiProperty({ example: 'identified', description: 'otp identifier' })
+  @ApiProperty({
+    example: '+91',
+    description: 'Country code of the user phone no',
+  })
   @IsNotEmpty()
   @IsString()
-  identifier: string;
+  countryCode: string;
+
+  @ApiProperty({ example: 'rahul@gmail.com', description: 'User phone number' })
+  @IsNotEmpty()
+  @IsString()
+  phoneNo: string;
 }
 
 export class LoginDTO extends DeviceInfoDTO {

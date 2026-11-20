@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@nestjs-modules/ioredis':
+        specifier: ^2.3.1
+        version: 2.3.1(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(@nestjs/sequelize@12.0.1(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(reflect-metadata@0.2.2)(rxjs@7.8.2)(sequelize-typescript@2.1.6(@types/node@24.19.2)(@types/validator@13.15.10)(reflect-metadata@0.2.2)(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1)))(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1)))(@nestjs/swagger@12.1.2(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(typescript@5.9.3))(ioredis@6.0.0(supports-color@8.1.1))(reflect-metadata@0.2.2)(rxjs@7.8.2)(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1))
       '@nestjs/common':
         specifier: ^11.0.1
         version: 11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
@@ -47,6 +50,12 @@ importers:
       class-validator:
         specifier: ^0.15.1
         version: 0.15.1
+      cookie:
+        specifier: ^2.0.2
+        version: 2.0.2
+      cookie-parser:
+        specifier: ^1.4.7
+        version: 1.4.7
       dotenv:
         specifier: ^18.0.10
         version: 18.0.10
@@ -77,6 +86,9 @@ importers:
       socket.io:
         specifier: ^4.8.4
         version: 4.8.4(supports-color@8.1.1)
+      uuid:
+        specifier: ^14.0.3
+        version: 14.0.3
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.2.0
@@ -93,6 +105,9 @@ importers:
       '@nestjs/testing':
         specifier: ^11.0.1
         version: 11.2.10(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(@nestjs/platform-express@11.2.10)
+      '@types/cookie-parser':
+        specifier: ^1.4.10
+        version: 1.4.10(@types/express@5.0.6)
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.6
@@ -699,6 +714,13 @@ packages:
   '@microsoft/tsdoc@0.17.1':
     resolution: {integrity: sha512-VHyYyyoH63jFoO3shpw9Zfijk5v/9p/VrClW35z0/q6ooK7sSmxpzOkS4iZPxs3vO4XtBW4H38HRAKkAMIK7DA==}
 
+  '@nestjs-modules/ioredis@2.3.1':
+    resolution: {integrity: sha512-9qyzqvppnskID7FQjtN5DhobFbqM4FO3RYyev4Dt0F/fh3Bn7T7nyZC8WkwypEb/Lyxhom83djLCDUuNLdsj3Q==}
+    peerDependencies:
+      '@nestjs/common': '>=6.7.0'
+      '@nestjs/core': '>=6.7.0'
+      ioredis: '>=5.0.0'
+
   '@nestjs/cli@11.0.24':
     resolution: {integrity: sha512-aIHxQLSYtXShifA3zwWIeznEsZnNa3Iz2QRykFj+sl9IcbERBHr5nH87FRgywM+He3NxoF5WazHfR8FsmVeWxw==}
     engines: {node: '>= 20.11'}
@@ -820,6 +842,58 @@ packages:
       class-validator:
         optional: true
       typescript:
+        optional: true
+
+  '@nestjs/terminus@12.2.0':
+    resolution: {integrity: sha512-2ssbjf3rCZVVogAVzxOWnBAF5k2KxKHw4fabLfrLy8SiA0QTaG0YEgcdamzbSVSucnnMDF0QCbpYv0bEkxmwtw==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+    peerDependencies:
+      '@grpc/grpc-js': '*'
+      '@grpc/proto-loader': '*'
+      '@mikro-orm/core': '*'
+      '@mikro-orm/nestjs': '*'
+      '@nestjs/axios': ^4.0.0 || ^12.0.0
+      '@nestjs/common': ^11.0.0 || ^12.0.0
+      '@nestjs/core': ^11.0.0 || ^12.0.0
+      '@nestjs/microservices': ^11.0.0 || ^12.0.0
+      '@nestjs/mongoose': ^11.0.0 || ^12.0.0
+      '@nestjs/sequelize': ^11.0.0 || ^12.0.0
+      '@nestjs/swagger': ^11.0.0 || ^12.0.0
+      '@nestjs/typeorm': ^11.0.0 || ^12.0.0
+      '@prisma/client': '*'
+      mongoose: '*'
+      reflect-metadata: ^0.1.12 || ^0.2.0
+      rxjs: ^7.1.0
+      sequelize: '*'
+      typeorm: '*'
+    peerDependenciesMeta:
+      '@grpc/grpc-js':
+        optional: true
+      '@grpc/proto-loader':
+        optional: true
+      '@mikro-orm/core':
+        optional: true
+      '@mikro-orm/nestjs':
+        optional: true
+      '@nestjs/axios':
+        optional: true
+      '@nestjs/microservices':
+        optional: true
+      '@nestjs/mongoose':
+        optional: true
+      '@nestjs/sequelize':
+        optional: true
+      '@nestjs/swagger':
+        optional: true
+      '@nestjs/typeorm':
+        optional: true
+      '@prisma/client':
+        optional: true
+      mongoose:
+        optional: true
+      sequelize:
+        optional: true
+      typeorm:
         optional: true
 
   '@nestjs/testing@11.2.10':
@@ -1008,6 +1082,11 @@ packages:
 
   '@types/connect@3.4.38':
     resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
+
+  '@types/cookie-parser@1.4.10':
+    resolution: {integrity: sha512-B4xqkqfZ8Wek+rCOeRxsjMS9OgvzebEzzLYw7NHYuvzb7IdxOkI0ZHGgeEBX4PUM7QGVvNSK60T3OvWj3YfBRg==}
+    peerDependencies:
+      '@types/express': '*'
 
   '@types/cookiejar@2.1.5':
     resolution: {integrity: sha512-he+DHOWReW0nghN24E1WUqM0efK4kI9oTqDm6XmK8ZPe2djZ90BSNdGnIyCLzCPw7/pogPlGbzI2wHGGmi4O/Q==}
@@ -1679,6 +1758,13 @@ packages:
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
+  cookie-parser@1.4.7:
+    resolution: {integrity: sha512-nGUvgXnotP3BsjiLX2ypbQnWoGUPIIfHQNZkkC668ntrzGWEZVW70HDEB1qnNGMicPje6EttlIgzo51YSwNQGw==}
+    engines: {node: '>= 0.8.0'}
+
+  cookie-signature@1.0.6:
+    resolution: {integrity: sha512-QADzlaHc8icV8I7vbaJXJwod9HWYp8uCqf1xa4OfNu1T7JVxQIrUgOWtHdNDtPiywmFbiS12VjotIXLrKM3orQ==}
+
   cookie-signature@1.2.2:
     resolution: {integrity: sha512-D76uU73ulSXrD1UXF4KE2TMxVVwhsnCgfAyTg9k8P6KGZjlXKrOLe4dJQKI3Bxi5wjesZoFXJWElNWBjPZMbhg==}
     engines: {node: '>=6.6.0'}
@@ -1686,6 +1772,10 @@ packages:
   cookie@0.7.2:
     resolution: {integrity: sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==}
     engines: {node: '>= 0.6'}
+
+  cookie@2.0.2:
+    resolution: {integrity: sha512-SL0cVuEdETEp7pN0FuZb01toc3vnODEfVUCooxG1SJN0yIirh7JMb9X9bvfCFf0vzzbT68RdbKDHYTiWy7a7iw==}
+    engines: {node: '>=22'}
 
   cookiejar@2.1.4:
     resolution: {integrity: sha512-LDx6oHrK+PhzLKJU9j5S7/Y3jM/mUHvD/DeI1WQmJn652iPC5Y4TBzC9l+5OMOXlyTTA+SmVUPm0HQUwpD5Jqw==}
@@ -3439,6 +3529,10 @@ packages:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
 
+  uuid@14.0.3:
+    resolution: {integrity: sha512-Sc5u1VVln93y1Xnz4R+CunOZc7R9LUcTmhj7Rc7Eg3HVcf7rVn2FOoa812fe0W8p3jD7xeoGSYbfqCGGH2B6xw==}
+    hasBin: true
+
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
     deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
@@ -4254,6 +4348,31 @@ snapshots:
 
   '@microsoft/tsdoc@0.17.1': {}
 
+  '@nestjs-modules/ioredis@2.3.1(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(@nestjs/sequelize@12.0.1(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(reflect-metadata@0.2.2)(rxjs@7.8.2)(sequelize-typescript@2.1.6(@types/node@24.19.2)(@types/validator@13.15.10)(reflect-metadata@0.2.2)(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1)))(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1)))(@nestjs/swagger@12.1.2(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(typescript@5.9.3))(ioredis@6.0.0(supports-color@8.1.1))(reflect-metadata@0.2.2)(rxjs@7.8.2)(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1))':
+    dependencies:
+      '@nestjs/common': 11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@nestjs/core': 11.2.10(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@11.2.10)(@nestjs/websockets@11.2.10)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      ioredis: 6.0.0(supports-color@8.1.1)
+    optionalDependencies:
+      '@nestjs/terminus': 12.2.0(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(@nestjs/sequelize@12.0.1(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(reflect-metadata@0.2.2)(rxjs@7.8.2)(sequelize-typescript@2.1.6(@types/node@24.19.2)(@types/validator@13.15.10)(reflect-metadata@0.2.2)(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1)))(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1)))(@nestjs/swagger@12.1.2(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(typescript@5.9.3))(reflect-metadata@0.2.2)(rxjs@7.8.2)(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1))
+    transitivePeerDependencies:
+      - '@grpc/grpc-js'
+      - '@grpc/proto-loader'
+      - '@mikro-orm/core'
+      - '@mikro-orm/nestjs'
+      - '@nestjs/axios'
+      - '@nestjs/microservices'
+      - '@nestjs/mongoose'
+      - '@nestjs/sequelize'
+      - '@nestjs/swagger'
+      - '@nestjs/typeorm'
+      - '@prisma/client'
+      - mongoose
+      - reflect-metadata
+      - rxjs
+      - sequelize
+      - typeorm
+
   '@nestjs/cli@11.0.24(@types/node@24.19.2)(prettier@3.10.1)(uglify-js@3.19.3)':
     dependencies:
       '@angular-devkit/core': 19.2.27(chokidar@4.0.3)
@@ -4400,6 +4519,18 @@ snapshots:
       class-transformer: 0.5.1
       class-validator: 0.15.1
       typescript: 5.9.3
+
+  '@nestjs/terminus@12.2.0(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(@nestjs/sequelize@12.0.1(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(reflect-metadata@0.2.2)(rxjs@7.8.2)(sequelize-typescript@2.1.6(@types/node@24.19.2)(@types/validator@13.15.10)(reflect-metadata@0.2.2)(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1)))(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1)))(@nestjs/swagger@12.1.2(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(typescript@5.9.3))(reflect-metadata@0.2.2)(rxjs@7.8.2)(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1))':
+    dependencies:
+      '@nestjs/common': 11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
+      '@nestjs/core': 11.2.10(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@11.2.10)(@nestjs/websockets@11.2.10)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      reflect-metadata: 0.2.2
+      rxjs: 7.8.2
+    optionalDependencies:
+      '@nestjs/sequelize': 12.0.1(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(reflect-metadata@0.2.2)(rxjs@7.8.2)(sequelize-typescript@2.1.6(@types/node@24.19.2)(@types/validator@13.15.10)(reflect-metadata@0.2.2)(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1)))(sequelize@6.37.8(pg@8.23.1)(supports-color@8.1.1))
+      '@nestjs/swagger': 12.1.2(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(typescript@5.9.3)
+      sequelize: 6.37.8(pg@8.23.1)(supports-color@8.1.1)
+    optional: true
 
   '@nestjs/testing@11.2.10(@nestjs/common@11.2.10(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.10)(@nestjs/platform-express@11.2.10)':
     dependencies:
@@ -4561,6 +4692,10 @@ snapshots:
   '@types/connect@3.4.38':
     dependencies:
       '@types/node': 24.19.2
+
+  '@types/cookie-parser@1.4.10(@types/express@5.0.6)':
+    dependencies:
+      '@types/express': 5.0.6
 
   '@types/cookiejar@2.1.5': {}
 
@@ -5271,9 +5406,18 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
+  cookie-parser@1.4.7:
+    dependencies:
+      cookie: 0.7.2
+      cookie-signature: 1.0.6
+
+  cookie-signature@1.0.6: {}
+
   cookie-signature@1.2.2: {}
 
   cookie@0.7.2: {}
+
+  cookie@2.0.2: {}
 
   cookiejar@2.1.4: {}
 
@@ -7176,6 +7320,8 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   utils-merge@1.0.1: {}
+
+  uuid@14.0.3: {}
 
   uuid@8.3.2: {}
 

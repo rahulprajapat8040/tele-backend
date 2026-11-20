@@ -58,3 +58,71 @@ export const decrypt = (encryptedText: string): string => {
 
   return decrypted.toString('utf8');
 };
+
+export function decryptUserPhone<T>(data: T): T {
+  const visited = new WeakMap<object, any>();
+
+  function recursiveDecrypt(value: any): any {
+    if (value === null || value === undefined) {
+      return value;
+    }
+
+    if (typeof value !== 'object') {
+      return value;
+    }
+
+    // Preserve Date objects
+    if (value instanceof Date) {
+      return value;
+    }
+
+    // Preserve Buffer
+    if (Buffer.isBuffer(value)) {
+      return value;
+    }
+
+    // Prevent circular references
+    if (visited.has(value)) {
+      return visited.get(value);
+    }
+
+    // Convert Sequelize instances to plain objects
+    const plainData =
+      typeof value.get === 'function' ? value.get({ plain: true }) : value;
+
+    if (plainData instanceof Date) {
+      return plainData;
+    }
+
+    // Handle arrays
+    if (Array.isArray(plainData)) {
+      const result: any[] = [];
+
+      visited.set(value, result);
+
+      plainData.forEach((item) => {
+        result.push(recursiveDecrypt(item));
+      });
+
+      return result;
+    }
+
+    const result: Record<string, any> = {};
+
+    visited.set(value, result);
+
+    for (const key of Object.keys(plainData)) {
+      const item = plainData[key];
+
+      if (key === 'phoneNo' && typeof item === 'string' && item) {
+        result[key] = decrypt(item);
+      } else {
+        result[key] = recursiveDecrypt(item);
+      }
+    }
+
+    return result;
+  }
+
+  return recursiveDecrypt(data);
+}

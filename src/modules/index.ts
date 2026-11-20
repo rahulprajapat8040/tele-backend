@@ -5,11 +5,13 @@ import { ConversationModule } from './conversation/conversation.module';
 import { DatabaseModule } from './database/database.module';
 import { MessagesModule } from './messages/messages.module';
 import { RedisModule } from './redis/redis.module';
+import { SessionsModule } from './sessions/sessions.module';
 
 export const modules = [
   RedisModule,
   DatabaseModule,
   AuthModule,
+  SessionsModule,
   ContactsModule,
   ConversationModule,
   MessagesModule,

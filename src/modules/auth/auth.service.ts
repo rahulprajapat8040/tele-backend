@@ -14,13 +14,15 @@ import {
   responseSender,
 } from 'src/lib/helper/function.helper';
 import { RESPONSE_MESSAGE } from 'src/lib/constant/response-message.constant';
-import { LoginDTO, SignupDTO } from './dto/auth.dto';
+import { LoginDTO, SendOTPDTO, SignupDTO } from './dto/auth.dto';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { Sequelize } from 'sequelize-typescript';
 import { DeviceType } from 'src/lib/enum';
-import { encrypt } from 'src/lib/helper/encryption.helper';
-import { IAuthUser } from 'src/lib/interfaces/user.interface';
+import { decryptUserPhone, encrypt } from 'src/lib/helper/encryption.helper';
+import { IAuthUser, IJwtPayload } from 'src/lib/interfaces/user.interface';
+import { SessionsService } from '../sessions/sessions.service';
+import { randomUUID } from 'crypto';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class AuthService {
@@ -28,12 +30,19 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly otpService: OTPService,
+    private readonly sessionService: SessionsService,
     @InjectModel(DeviceInfo)
     private readonly deviceInfoModel: typeof DeviceInfo,
     @InjectModel(User) private readonly userModel: typeof User,
+    private readonly redis: RedisService,
   ) {}
 
-  async sendOTP(identifier: string) {
+  async sendOTP(dto: SendOTPDTO) {
+    const isExist = await this.isUserExist(dto.countryCode, dto.phoneNo);
+    if (!isExist) {
+      throw new NotFoundException(RESPONSE_MESSAGE.PHONE_NOT_FOUND);
+    }
+    const identifier = this.getIdentifier(dto.countryCode, dto.phoneNo);
     const res = await this.otpService.generateAuthOTP(identifier);
     return responseSender(RESPONSE_MESSAGE.OTP_SENT, HttpStatus.OK, true, res);
   }
@@ -50,10 +59,15 @@ export class AuthService {
 
     const identifier = this.getIdentifier(countryCode, phoneNo);
     await this.otpService.verifyAuthOTP(identifier, otp);
+
+    const sessionId = randomUUID();
+    const accessTokenExpiresIn = 15 * 60;
+
     const { accessToken, refreshHash, refreshToken } =
       await this.generateTokens({
         userId: user.id,
         deviceId,
+        sessionId,
       });
     await this.upsertDevice({
       deviceId,
@@ -63,6 +77,15 @@ export class AuthService {
       otp,
       deviceType,
     });
+
+    await this.sessionService.createSession({
+      userId: user.id,
+      deviceId,
+      deviceType,
+      sessionId,
+      expiresIn: accessTokenExpiresIn,
+    });
+
     return responseSender(
       RESPONSE_MESSAGE.USER_LOGGED_IN,
       HttpStatus.OK,
@@ -96,11 +119,23 @@ export class AuthService {
       phoneNo: encrypt(normalizedPhone),
       phoneHash: generatePhoneHash(normalizedPhone),
     });
+
+    const sessionId = randomUUID();
+    const accessTokenExpiresIn = 15 * 60;
+
     const { accessToken, refreshHash, refreshToken } =
       await this.generateTokens({
         userId: user.id,
         deviceId,
+        sessionId,
       });
+    await this.sessionService.createSession({
+      userId: user.id,
+      deviceId,
+      deviceType,
+      sessionId,
+      expiresIn: accessTokenExpiresIn,
+    });
     await this.upsertDevice({
       deviceId,
       deviceToken,
@@ -117,17 +152,57 @@ export class AuthService {
     );
   }
 
-  async getMe(user: IAuthUser) {
-    const res = await this.userModel.findByPk(user.userId);
+  async getMe(userData: IAuthUser) {
+    const cacheKey = `user:profile:${userData.userId}`;
+
+    // 1. Check Redis first
+    const cachedUser = await this.redis.get(cacheKey);
+
+    if (cachedUser) {
+      return responseSender(
+        RESPONSE_MESSAGE.DATA_FETCHED,
+        HttpStatus.OK,
+        true,
+        JSON.parse(cachedUser),
+      );
+    }
+
+    // 2. Fallback to PostgreSQL
+    const user = await this.userModel.findByPk(userData.userId, {
+      attributes: ['id', 'firstName', 'lastName', 'countryCode', 'phoneNo'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // 3. Decrypt phone number if necessary
+    const decryptedUser = decryptUserPhone(user);
+
+    const profile = {
+      id: decryptedUser.id,
+      firstName: decryptedUser.firstName,
+      lastName: decryptedUser.lastName,
+      countryCode: decryptedUser.countryCode,
+      phoneNo: decryptedUser.phoneNo,
+    };
+
+    // 4. Cache for 10 minutes
+    await this.redis.set(cacheKey, JSON.stringify(profile), 600);
+
     return responseSender(
       RESPONSE_MESSAGE.DATA_FETCHED,
       HttpStatus.OK,
       true,
-      res,
+      decryptedUser,
     );
   }
 
-  private async generateTokens(data: { deviceId: string; userId: string }) {
+  private async generateTokens(data: {
+    deviceId: string;
+    userId: string;
+    sessionId: string;
+  }) {
     const accessToken = this.jwtService.sign(data, {
       secret: process.env.JWT_ACCESS_SECRET!,
       expiresIn: '1d',
@@ -145,7 +220,6 @@ export class AuthService {
   private async isUserExist(countryCode: string, phoneNo: string) {
     const normalizedPhone = normalizePhoneNo(countryCode, phoneNo);
     const phoneHash = generatePhoneHash(normalizedPhone);
-    console.log('sss', phoneHash);
     const res = await this.userModel.findOne({
       where: { phoneHash: phoneHash },
       attributes: ['id'],
