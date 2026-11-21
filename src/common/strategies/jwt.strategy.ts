@@ -4,16 +4,17 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ACCESS_TOKEN_KEY } from 'src/lib/constant/constant';
-import { decryptUserPhone } from 'src/lib/helper/encryption.helper';
 import { IAuthUser, IJwtPayload } from 'src/lib/interfaces/user.interface';
 import { User } from 'src/modules/database/models';
 import { SessionsService } from 'src/modules/sessions/sessions.service';
+import { UsersService } from 'src/modules/users/users.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     @InjectModel(User) private readonly userModel: typeof User,
     private readonly sessionsService: SessionsService,
+    private readonly usersService: UsersService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -47,19 +48,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Session expired or revoked');
     }
 
-    const user = await this.userModel.findByPk(payload.userId, {
-      attributes: ['id', 'firstName', 'lastName', 'countryCode', 'phoneNo'],
-    });
+    const user = await this.usersService.getUserProfile(payload.userId);
 
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
     return {
-      userId: user.id,
-      deviceId: payload.deviceId,
+      ...user,
       sessionId: payload.sessionId,
-      ...decryptUserPhone(user),
     } as IAuthUser;
   }
 }

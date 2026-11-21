@@ -1,5 +1,5 @@
 export interface IAuthUser {
-  userId: string;
+  id: string;
   deviceId: string;
   sessionId: string;
 

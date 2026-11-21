@@ -45,7 +45,7 @@ export class ConversationService {
     user: IAuthUser,
     dto: CreatePrivateConversationDTO,
   ) {
-    const currentUserId = user.userId;
+    const currentUserId = user.id;
     const targetUserId = dto.userId;
 
     if (currentUserId === targetUserId) {
@@ -170,7 +170,7 @@ export class ConversationService {
       include: [
         {
           model: this.conversationMemberModel,
-          where: { userId: { [Op.ne]: user.userId }, leftAt: null },
+          where: { userId: user.id, leftAt: null },
           attributes: ['id'],
           include: [
             {

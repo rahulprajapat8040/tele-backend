@@ -56,7 +56,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           return next(new Error('Invalid token payload'));
         }
 
-        socket.data.user = { userId };
+        socket.data.user = { id: userId };
 
         return next();
       } catch (error) {
@@ -66,18 +66,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async handleConnection(client: Socket) {
-    const { userId } = client.data.user;
+    const { id } = client.data.user;
 
-    const room = `user:${userId}`;
+    const room = `user:${id}`;
 
     await client.join(room);
-
-    console.log('SOCKET ROOM JOINED:', {
-      userId,
-      socketId: client.id,
-      room,
-      rooms: [...client.rooms],
-    });
   }
 
   handleDisconnect(client: Socket) {
@@ -95,10 +88,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const user = client.data.user;
 
       const message = await this.messageService.sendMessage(user, dto);
-      this.logger.log(`Message send by user ${user.userId} ${message}`);
+      this.logger.log(`Message send by user ${user.id} ${message}`);
       const recipientIds = await this.messageService.getRecipientUserIds(
         dto.conversationId,
-        user.userId,
+        user.id,
       );
 
       for (const recipientId of recipientIds) {
@@ -106,6 +99,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           .to(`user:${recipientId}`)
           .emit(CHAT_EVENTS.NEW_MESSAGE, message);
       }
+      this.logger.log(
+        `Message recieved to users, ${JSON.stringify(recipientIds)}`,
+      );
 
       return { success: true, message };
     } catch (error) {
@@ -123,26 +119,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     },
   ) {
     const user = client.data.user;
-
+    this.logger.log('Message delivery', user);
     const result = await this.messageService.markAsDelivered(
       user,
       data.conversationId,
       data.lastDeliveredMessageId,
     );
-
-    // Find other conversation members
-    const recipientIds = await this.messageService.getRecipientUserIds(
-      data.conversationId,
-      user.userId,
-    );
-
-    // Notify message sender(s)
-    for (const recipientId of recipientIds) {
-      this.server.to(`user:${recipientId}`).emit(CHAT_EVENTS.MESSAGE_STATUS, {
+    console.log('DELIVERY RESULT:', JSON.stringify(result, null, 2));
+    // Notify only the senders whose messages had receipts updated
+    for (const senderId of result.data.senderIds) {
+      this.server.to(`user:${senderId}`).emit(CHAT_EVENTS.MESSAGE_STATUS, {
         conversationId: data.conversationId,
+        messageIds: result.data.updatedMessageIds,
         lastDeliveredMessageId: data.lastDeliveredMessageId,
         status: 'DELIVERED',
-        deliveredBy: user.userId,
+        deliveredBy: user.id,
+        deliveredAt: result.data.deliveredAt,
       });
     }
 
@@ -183,7 +175,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         conversationId: data.conversationId,
         lastReadMessageId: data.lastReadMessageId,
         status: 'READ',
-        readBy: user.userId,
+        readBy: user.id,
       });
 
     return {
@@ -200,7 +192,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data.user;
 
     const isMember = await this.messageService.isConversationMember(
-      user.userId,
+      user.id,
       data.conversationId,
     );
 
@@ -212,7 +204,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .to(`conversation:${data.conversationId}`)
       .emit(CHAT_EVENTS.USER_TYPING, {
         conversationId: data.conversationId,
-        userId: user.userId,
+        userId: user.id,
         isTyping: true,
       });
   }

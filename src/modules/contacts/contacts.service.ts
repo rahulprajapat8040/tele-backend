@@ -82,7 +82,7 @@ export class ContactsService {
       }
 
       return {
-        ownerUserId: user.userId,
+        ownerUserId: user.id,
         contactName: contact.contactName,
         phoneHash: contact.phoneHash,
         matchedUserId,
@@ -94,7 +94,7 @@ export class ContactsService {
     });
 
     this.logger.log(
-      `Synchronized ${contactRecords.length} contacts for user ${user.userId}`,
+      `Synchronized ${contactRecords.length} contacts for user ${user.id}`,
     );
 
     return responseSender(
@@ -114,7 +114,7 @@ export class ContactsService {
     const { page, limit, offset } = getPagination(query);
     const { rows, count } = await this.contactModel.findAndCountAll({
       where: {
-        ownerUserId: user.userId,
+        ownerUserId: user.id,
         matchedUserId: {
           [Op.ne]: null,
         },

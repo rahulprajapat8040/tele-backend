@@ -18,11 +18,10 @@ import { LoginDTO, SendOTPDTO, SignupDTO } from './dto/auth.dto';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { DeviceType } from 'src/lib/enum';
-import { decryptUserPhone, encrypt } from 'src/lib/helper/encryption.helper';
-import { IAuthUser, IJwtPayload } from 'src/lib/interfaces/user.interface';
+import { encrypt } from 'src/lib/helper/encryption.helper';
+import { IAuthUser } from 'src/lib/interfaces/user.interface';
 import { SessionsService } from '../sessions/sessions.service';
 import { randomUUID } from 'crypto';
-import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class AuthService {
@@ -34,7 +33,6 @@ export class AuthService {
     @InjectModel(DeviceInfo)
     private readonly deviceInfoModel: typeof DeviceInfo,
     @InjectModel(User) private readonly userModel: typeof User,
-    private readonly redis: RedisService,
   ) {}
 
   async sendOTP(dto: SendOTPDTO) {
@@ -153,48 +151,11 @@ export class AuthService {
   }
 
   async getMe(userData: IAuthUser) {
-    const cacheKey = `user:profile:${userData.userId}`;
-
-    // 1. Check Redis first
-    const cachedUser = await this.redis.get(cacheKey);
-
-    if (cachedUser) {
-      return responseSender(
-        RESPONSE_MESSAGE.DATA_FETCHED,
-        HttpStatus.OK,
-        true,
-        JSON.parse(cachedUser),
-      );
-    }
-
-    // 2. Fallback to PostgreSQL
-    const user = await this.userModel.findByPk(userData.userId, {
-      attributes: ['id', 'firstName', 'lastName', 'countryCode', 'phoneNo'],
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // 3. Decrypt phone number if necessary
-    const decryptedUser = decryptUserPhone(user);
-
-    const profile = {
-      id: decryptedUser.id,
-      firstName: decryptedUser.firstName,
-      lastName: decryptedUser.lastName,
-      countryCode: decryptedUser.countryCode,
-      phoneNo: decryptedUser.phoneNo,
-    };
-
-    // 4. Cache for 10 minutes
-    await this.redis.set(cacheKey, JSON.stringify(profile), 600);
-
     return responseSender(
       RESPONSE_MESSAGE.DATA_FETCHED,
       HttpStatus.OK,
       true,
-      decryptedUser,
+      userData,
     );
   }
 

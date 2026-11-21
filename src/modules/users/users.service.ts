@@ -11,12 +11,10 @@ export class UsersService {
     @InjectModel(User) private readonly userModel: typeof User,
   ) {}
   async getUserProfile(userId: string) {
-    console.log('getting cacheee user', userId);
     const cacheKey = `user:profile:${userId}`;
 
     // 1. Check Redis first
     const cachedUser = await this.redis.get(cacheKey);
-
     if (cachedUser) {
       return JSON.parse(cachedUser);
     }
@@ -42,7 +40,7 @@ export class UsersService {
     };
 
     // 4. Cache for 10 minutes
-    await this.redis.set(cacheKey, JSON.stringify(profile), 600);
+    await this.redis.set(cacheKey, JSON.stringify(profile), 600 * 60 * 100);
 
     return profile;
   }

@@ -44,9 +44,8 @@ export class MessagesService {
   ) {}
 
   async sendMessage(user: IAuthUser, dto: SendMessageDTO) {
-    const senderId = user.userId;
+    const senderId = user.id;
     const content = dto.content?.trim() ?? null;
-
     // 1. Validate message content.
     if (dto.type === MessageType.TEXT && !dto.content?.trim()) {
       throw new BadRequestException('Message cannot be empty');
@@ -69,12 +68,12 @@ export class MessagesService {
         leftAt: null,
       },
     });
-
     if (!membership) {
       throw new ForbiddenException(
         'You are not allowed to send messages in this conversation',
       );
     }
+
     const sender = await this.usersService.getUserProfile(senderId);
 
     // 4. Check whether message was already submitted.
@@ -87,7 +86,6 @@ export class MessagesService {
 
     if (existingMessage) {
       this.validateDuplicateMessage(existingMessage, dto, content);
-
       return responseSender(RESPONSE_MESSAGE.DATA_ADDED, HttpStatus.OK, true, {
         ...existingMessage.toJSON(),
         sender,
@@ -109,7 +107,7 @@ export class MessagesService {
 
         const recipients = await this.getRecipientUserIds(
           conversation.id,
-          user.userId,
+          user.id,
         );
 
         if (recipients.length > 0) {
@@ -172,11 +170,11 @@ export class MessagesService {
     lastDeliveredMessageId: string,
   ) {
     return this.sequelize.transaction(async (transaction) => {
-      // 1. Verify membership and lock the membership row
+      // 1. Verify membership
       const membership = await this.conversationMemberModel.findOne({
         where: {
           conversationId,
-          userId: user.userId,
+          userId: user.id,
           leftAt: null,
         },
         transaction,
@@ -189,13 +187,13 @@ export class MessagesService {
         );
       }
 
-      // 2. Find the acknowledged message
+      // 2. Find acknowledged message
       const targetMessage = await this.messageModel.findOne({
         where: {
           id: lastDeliveredMessageId,
           conversationId,
           senderId: {
-            [Op.ne]: user.userId,
+            [Op.ne]: user.id,
           },
         },
         transaction,
@@ -205,8 +203,8 @@ export class MessagesService {
         throw new NotFoundException('Message not found');
       }
 
-      // 3. Determine whether the delivery cursor should advance
-      let shouldUpdate = true;
+      // 3. Check if delivery cursor should advance
+      let shouldUpdateCursor = true;
 
       if (membership.lastDeliveredMessageId) {
         const currentMessage = await this.messageModel.findOne({
@@ -218,28 +216,27 @@ export class MessagesService {
         });
 
         if (currentMessage) {
-          const currentTime = currentMessage.createdAt.getTime();
-          const targetTime = targetMessage.createdAt.getTime();
+          const targetIsOlder =
+            targetMessage.createdAt < currentMessage.createdAt ||
+            (targetMessage.createdAt.getTime() ===
+              currentMessage.createdAt.getTime() &&
+              targetMessage.id <= currentMessage.id);
 
-          if (
-            targetTime < currentTime ||
-            (targetTime === currentTime &&
-              targetMessage.id <= currentMessage.id)
-          ) {
-            shouldUpdate = false;
+          if (targetIsOlder) {
+            shouldUpdateCursor = false;
           }
         }
       }
 
       const now = new Date();
 
-      // 4. Find all incoming messages up to the acknowledged message
+      // 4. Find incoming messages up to the acknowledged cursor
       const messages = await this.messageModel.findAll({
-        attributes: ['id'],
+        attributes: ['id', 'senderId'],
         where: {
           conversationId,
           senderId: {
-            [Op.ne]: user.userId,
+            [Op.ne]: user.id,
           },
           [Op.or]: [
             {
@@ -260,27 +257,36 @@ export class MessagesService {
 
       const messageIds = messages.map((message) => message.id);
 
-      // 5. Update individual message delivery receipts
-      if (messageIds.length > 0) {
-        await this.messageReceiptModel.update(
+      // 5. Update only pending receipts
+      let updatedCount = 0;
+      let updatedMessageIds: string[] = [];
+
+      if (messageIds.length) {
+        const [count, updatedReceipts] = await this.messageReceiptModel.update(
           {
             deliveredAt: now,
           },
           {
             where: {
-              userId: user.userId,
+              userId: user.id,
               messageId: {
                 [Op.in]: messageIds,
               },
               deliveredAt: null,
             },
             transaction,
+            returning: true,
           },
         );
+
+        updatedCount = count;
+
+        // Only messages whose receipts actually changed
+        updatedMessageIds = updatedReceipts.map((receipt) => receipt.messageId);
       }
 
-      // 6. Update conversation delivery cursor
-      if (shouldUpdate) {
+      // 6. Advance cursor only if newer
+      if (shouldUpdateCursor) {
         await membership.update(
           {
             lastDeliveredMessageId: targetMessage.id,
@@ -290,15 +296,40 @@ export class MessagesService {
         );
       }
 
-      // 7. Return updated delivery information
+      // 7. Determine actual senders for changed receipts
+      const updatedMessages = updatedMessageIds.length
+        ? await this.messageModel.findAll({
+            attributes: ['id', 'senderId'],
+            where: {
+              id: {
+                [Op.in]: updatedMessageIds,
+              },
+            },
+            transaction,
+          })
+        : [];
+
+      const senderIds = [
+        ...new Set(
+          updatedMessages
+            .map((message) => message.senderId)
+            .filter((senderId) => senderId !== user.id),
+        ),
+      ];
+
+      // 8. Return delivery result
       return responseSender(
         RESPONSE_MESSAGE.DATA_UPDATED,
         HttpStatus.OK,
         true,
         {
+          conversationId,
           lastDeliveredMessageId: membership.lastDeliveredMessageId,
           lastDeliveredAt: membership.lastDeliveredAt,
-          updatedReceipts: messageIds.length,
+          updatedReceipts: updatedCount,
+          updatedMessageIds,
+          senderIds,
+          deliveredAt: now,
         },
       );
     });
@@ -312,7 +343,7 @@ export class MessagesService {
     const { limit = 30, before } = query;
 
     const membership = await this.conversationMemberModel.findOne({
-      where: { conversationId, userId: user.userId, leftAt: null },
+      where: { conversationId, userId: user.id, leftAt: null },
     });
 
     if (!membership) {
@@ -401,7 +432,7 @@ export class MessagesService {
       const membership = await this.conversationMemberModel.findOne({
         where: {
           conversationId,
-          userId: user.userId,
+          userId: user.id,
           leftAt: null,
         },
         transaction,
@@ -417,7 +448,7 @@ export class MessagesService {
           id: dto.lastReadMessageId,
           conversationId,
           senderId: {
-            [Op.ne]: user.userId,
+            [Op.ne]: user.id,
           },
         },
         transaction,
@@ -484,7 +515,7 @@ export class MessagesService {
         where: {
           conversationId,
           senderId: {
-            [Op.ne]: user.userId,
+            [Op.ne]: user.id,
           },
           [Op.or]: [
             {
@@ -513,7 +544,7 @@ export class MessagesService {
           },
           {
             where: {
-              userId: user.userId,
+              userId: user.id,
               messageId: {
                 [Op.in]: messageIds,
               },
@@ -530,7 +561,7 @@ export class MessagesService {
           },
           {
             where: {
-              userId: user.userId,
+              userId: user.id,
               messageId: {
                 [Op.in]: messageIds,
               },
