@@ -11,6 +11,7 @@ import {
 import { MODEL_NAME } from 'src/lib/constant/model-name.constant';
 import { DeviceInfo } from './device-info.model';
 import { Contact } from './contact.model';
+import { DataTypes } from 'sequelize';
 
 @Table({ tableName: MODEL_NAME.USER, paranoid: true, timestamps: true })
 export class User extends Model<User, Partial<User>> {
@@ -52,6 +53,10 @@ export class User extends Model<User, Partial<User>> {
   @AllowNull
   @Column(DataType.DATEONLY)
   declare dob: string;
+
+  @AllowNull
+  @Column(DataType.DATE)
+  declare lastSeenAt: Date | null;
 
   @HasMany(() => DeviceInfo)
   declare devices: DeviceInfo[];

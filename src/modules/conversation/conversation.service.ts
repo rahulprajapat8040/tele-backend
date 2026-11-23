@@ -26,6 +26,7 @@ import {
 import { RESPONSE_MESSAGE } from 'src/lib/constant/response-message.constant';
 import { decryptUserPhone } from 'src/lib/helper/encryption.helper';
 import { MessageReceipts } from '../database/models/message-receipts';
+import { PresenceService } from '../presence/presence.service';
 
 @Injectable()
 export class ConversationService {
@@ -37,6 +38,7 @@ export class ConversationService {
     @InjectModel(ConversationMember)
     private readonly conversationMemberModel: typeof ConversationMember,
     @InjectModel(User) private readonly userModel: typeof User,
+    private readonly presenceService: PresenceService,
 
     private readonly sequelize: Sequelize,
   ) {}
@@ -181,6 +183,7 @@ export class ConversationService {
                 'lastName',
                 'countryCode',
                 'phoneNo',
+                'lastSeenAt',
               ],
             },
           ],
@@ -202,13 +205,89 @@ export class ConversationService {
 
     const decryptedUser = decryptUserPhone(res);
 
-    const response = generatePagination(decryptedUser, page, limit);
+    const conversationIds = decryptedUser.rows.map(
+      (conversation: any) => conversation.id,
+    );
+
+    const otherMembers = await this.conversationMemberModel.findAll({
+      where: {
+        conversationId: {
+          [Op.in]: conversationIds,
+        },
+        userId: {
+          [Op.ne]: user.id,
+        },
+        leftAt: null,
+      },
+      attributes: ['conversationId', 'userId'],
+      include: [
+        {
+          model: this.userModel,
+          attributes: ['id', 'firstName', 'lastName', 'lastSeenAt'],
+        },
+      ],
+    });
+
+    const otherUserIds = [
+      ...new Set(otherMembers.map((member: any) => member.userId)),
+    ];
+
+    const onlineUserIds =
+      await this.presenceService.getOnlineUsers(otherUserIds);
+
+    const onlineSet = new Set(onlineUserIds);
+
+    const conversations = decryptedUser.rows.map((conversation: any) => {
+      const participants = otherMembers
+        .filter((member: any) => member.conversationId === conversation.id)
+        .map((member: any) => {
+          const participant = member.user;
+
+          return {
+            ...participant.toJSON(),
+
+            isOnline: onlineSet.has(participant.id),
+
+            // Hide last seen when online
+            lastSeenAt: onlineSet.has(participant.id)
+              ? null
+              : participant.lastSeenAt,
+          };
+        });
+
+      return {
+        ...conversation,
+        participants,
+      };
+    });
+
+    const response = generatePagination(
+      {
+        rows: conversations,
+        count: decryptedUser.count,
+      },
+      page,
+      limit,
+    );
     return responseSender(
       RESPONSE_MESSAGE.DATA_FETCHED,
       HttpStatus.OK,
       true,
       response,
     );
+  }
+
+  async getActiveConversationIds(userId: string): Promise<string[]> {
+    const memberships = await this.conversationMemberModel.findAll({
+      where: {
+        userId,
+        leftAt: null,
+      },
+      attributes: ['conversationId'],
+      raw: true,
+    });
+
+    return memberships.map((member) => member.conversationId);
   }
 
   private generateDirectKey(user1: string, user2: string) {

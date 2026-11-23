@@ -33,4 +33,39 @@ export class RedisService {
   async ttl(key: string): Promise<number> {
     return this.redis.ttl(key);
   }
+
+  async sadd(key: string, member: string): Promise<number> {
+    return this.redis.sadd(key, member);
+  }
+
+  async srem(key: string, member: string): Promise<number> {
+    return this.redis.srem(key, member);
+  }
+
+  async scard(key: string): Promise<number> {
+    return this.redis.scard(key);
+  }
+
+  async smembers(key: string): Promise<string[]> {
+    return this.redis.smembers(key);
+  }
+
+  async sismember(key: string, member: string): Promise<boolean> {
+    return (await this.redis.sismember(key, member)) === 1;
+  }
+
+  async scardMany(keys: string[]): Promise<number[]> {
+    if (!keys.length) return [];
+
+    const pipeline = this.redis.pipeline();
+
+    keys.forEach((key) => pipeline.scard(key));
+
+    const results = await pipeline.exec();
+
+    return (results ?? []).map(([error, result]) => {
+      if (error) throw error;
+      return Number(result);
+    });
+  }
 }

@@ -44,4 +44,8 @@ export class UsersService {
 
     return profile;
   }
+
+  async updateLastSeen(userId: string, lastSeenAt: Date) {
+    await this.userModel.update({ lastSeenAt }, { where: { id: userId } });
+  }
 }

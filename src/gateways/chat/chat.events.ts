@@ -7,6 +7,7 @@ export const CHAT_EVENTS = {
 
   TYPING_START: 'typing:start',
   TYPING_STOP: 'typing:stop',
+  SYNC_PENDING_MESSAGES: 'sync_pending_messages',
 
   // Server -> Client
   NEW_MESSAGE: 'message:new',
@@ -14,4 +15,6 @@ export const CHAT_EVENTS = {
   USER_TYPING: 'user:typing',
   USER_ONLINE: 'user:online',
   USER_OFFLINE: 'user:offline',
+
+  CONVERSATION_JOIN: 'conversation:join',
 };

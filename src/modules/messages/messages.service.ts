@@ -458,7 +458,7 @@ export class MessagesService {
         throw new NotFoundException('Message not found');
       }
 
-      // Helper: Compare message ordering
+      // Compare message ordering
       const isMessageAhead = (
         target: Message,
         current: Message | null,
@@ -510,8 +510,9 @@ export class MessagesService {
 
       const now = new Date();
 
+      // Fetch incoming messages up to the target message.
       const messages = await this.messageModel.findAll({
-        attributes: ['id'],
+        attributes: ['id', 'senderId'],
         where: {
           conversationId,
           senderId: {
@@ -536,8 +537,43 @@ export class MessagesService {
 
       const messageIds = messages.map((message) => message.id);
 
-      // Preserve existing delivery timestamps.
+      let updatedMessageIds: string[] = [];
+
+      // Map changed message receipts to their original senders.
+      const senderMessageMap: Record<string, string[]> = {};
+
       if (messageIds.length > 0) {
+        // Find receipts that have not been read yet.
+        const unreadReceipts = await this.messageReceiptModel.findAll({
+          attributes: ['messageId'],
+          where: {
+            userId: user.id,
+            messageId: {
+              [Op.in]: messageIds,
+            },
+            readAt: null,
+          },
+          transaction,
+        });
+
+        updatedMessageIds = unreadReceipts.map((receipt) => receipt.messageId);
+
+        const updatedMessageSet = new Set(updatedMessageIds);
+
+        // Group updated receipt message IDs by sender.
+        for (const message of messages) {
+          if (!updatedMessageSet.has(message.id)) continue;
+
+          const senderId = message.senderId;
+
+          if (!senderMessageMap[senderId]) {
+            senderMessageMap[senderId] = [];
+          }
+
+          senderMessageMap[senderId].push(message.id);
+        }
+
+        // Reading implies delivery.
         await this.messageReceiptModel.update(
           {
             deliveredAt: now,
@@ -554,24 +590,27 @@ export class MessagesService {
           },
         );
 
-        // Preserve existing read timestamps.
-        await this.messageReceiptModel.update(
-          {
-            readAt: now,
-          },
-          {
-            where: {
-              userId: user.id,
-              messageId: {
-                [Op.in]: messageIds,
-              },
-              readAt: null,
+        // Mark unread receipts as read.
+        if (updatedMessageIds.length > 0) {
+          await this.messageReceiptModel.update(
+            {
+              readAt: now,
             },
-            transaction,
-          },
-        );
+            {
+              where: {
+                userId: user.id,
+                messageId: {
+                  [Op.in]: updatedMessageIds,
+                },
+                readAt: null,
+              },
+              transaction,
+            },
+          );
+        }
       }
 
+      // Update conversation member cursors.
       const membershipUpdate: Partial<ConversationMember> = {};
 
       if (shouldUpdateReadCursor) {
@@ -579,7 +618,7 @@ export class MessagesService {
         membershipUpdate.lastReadAt = now;
       }
 
-      // Reading implies delivery, but never move it backwards.
+      // Reading also means delivered. Never move the cursor backwards.
       if (shouldUpdateDeliveredCursor) {
         membershipUpdate.lastDeliveredMessageId = targetMessage.id;
         membershipUpdate.lastDeliveredAt = now;
@@ -596,13 +635,26 @@ export class MessagesService {
         HttpStatus.OK,
         true,
         {
-          lastReadMessageId: membership.lastReadMessageId,
-          lastReadAt: membership.lastReadAt,
+          conversationId,
 
-          lastDeliveredMessageId: membership.lastDeliveredMessageId,
-          lastDeliveredAt: membership.lastDeliveredAt,
+          lastReadMessageId: shouldUpdateReadCursor
+            ? targetMessage.id
+            : membership.lastReadMessageId,
 
-          updatedReceipts: messageIds.length,
+          lastReadAt: shouldUpdateReadCursor ? now : membership.lastReadAt,
+
+          lastDeliveredMessageId: shouldUpdateDeliveredCursor
+            ? targetMessage.id
+            : membership.lastDeliveredMessageId,
+
+          lastDeliveredAt: shouldUpdateDeliveredCursor
+            ? now
+            : membership.lastDeliveredAt,
+
+          updatedMessageIds,
+          senderMessageMap,
+          readAt: now,
+          updatedReceipts: updatedMessageIds.length,
         },
       );
     });
@@ -653,6 +705,59 @@ export class MessagesService {
     }
 
     return message;
+  }
+
+  async getPendingDeliveryMessages(userId: string) {
+    // 1. Get the user's active conversations
+    const memberships = await this.conversationMemberModel.findAll({
+      attributes: ['conversationId'],
+      where: {
+        userId,
+        leftAt: null,
+      },
+      raw: true,
+    });
+
+    const conversationIds = memberships.map((item) => item.conversationId);
+
+    if (!conversationIds.length) {
+      return [];
+    }
+
+    // 2. Get messages that have not been delivered to this user
+    const messages = await this.messageModel.findAll({
+      where: {
+        conversationId: {
+          [Op.in]: conversationIds,
+        },
+        senderId: {
+          [Op.ne]: userId,
+        },
+      },
+      include: [
+        {
+          model: this.messageReceiptModel,
+          as: 'receipts',
+          required: true,
+          where: {
+            userId,
+            deliveredAt: null,
+          },
+          attributes: ['userId', 'deliveredAt', 'readAt'],
+        },
+        {
+          model: User,
+          as: 'sender',
+          attributes: ['id', 'firstName'],
+        },
+      ],
+      order: [
+        ['createdAt', 'ASC'],
+        ['id', 'ASC'],
+      ],
+    });
+
+    return messages;
   }
 
   private validateDuplicateMessage(
