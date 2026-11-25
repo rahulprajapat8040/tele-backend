@@ -1,6 +1,8 @@
 export const CHAT_EVENTS = {
   // Client -> Server
   SEND_MESSAGE: 'message:send',
+  EDIT_MESSAGE: 'message:edit',
+  DELETE_MESSAGE: 'message:delete',
   JOIN_CONVERSATION: 'conversation:join',
   MESSAGE_DELIVERED: 'message:delivered',
   MESSAGE_READ: 'message:read',
@@ -11,6 +13,8 @@ export const CHAT_EVENTS = {
 
   // Server -> Client
   NEW_MESSAGE: 'message:new',
+  MESSAGE_EDITED: 'message:edited',
+  MESSAGE_DELETED: 'message:deleted',
   MESSAGE_STATUS: 'message:status',
   USER_TYPING: 'user:typing',
   USER_ONLINE: 'user:online',

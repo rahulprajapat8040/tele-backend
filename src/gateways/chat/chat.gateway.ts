@@ -12,7 +12,11 @@ import {
 import { Server, Socket } from 'socket.io';
 import { CHAT_EVENTS } from './chat.events';
 import { MessagesService } from 'src/modules/messages/messages.service';
-import { SendMessageDTO } from 'src/modules/messages/dto/messages.dto';
+import {
+  DeleteMessageDTO,
+  EditMessageDTO,
+  SendMessageDTO,
+} from 'src/modules/messages/dto/messages.dto';
 import { parseCookie } from 'cookie';
 import { Logger } from '@nestjs/common';
 import { ACCESS_TOKEN_KEY } from 'src/lib/constant/constant';
@@ -51,8 +55,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private async broadcastPresence(userId: string, event: string, payload: any) {
+    this.logger.debug(`Broadcasting ${event} for user ${userId}`);
+
     const conversationIds =
       await this.conversationService.getActiveConversationIds(userId);
+
+    this.logger.debug(
+      `User ${userId} conversations: ${JSON.stringify(conversationIds)}`,
+    );
 
     for (const conversationId of conversationIds) {
       this.server.to(`conversation:${conversationId}`).emit(event, payload);
@@ -97,28 +107,45 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: Socket) {
     const { id } = client.data.user;
 
-    const room = `user:${id}`;
+    // Join personal room
+    await client.join(`user:${id}`);
 
+    // Register socket in Redis presence
     const becameOnline = await this.presenceService.addSocket(id, client.id);
 
-    if (becameOnline) {
-      await this.broadcastPresence(id, 'USER_ONLINE', {
-        id,
-        status: 'online',
-      });
+    // Join all active conversation rooms
+    const conversationIds =
+      await this.conversationService.getActiveConversationIds(id);
+
+    for (const conversationId of conversationIds) {
+      await client.join(`conversation:${conversationId}`);
     }
 
-    await client.join(room);
+    this.logger.debug(
+      `User ${id} joined conversation rooms: ${JSON.stringify(conversationIds)}`,
+    );
+
+    // Broadcast online status
+    if (becameOnline) {
+      await this.broadcastPresence(id, CHAT_EVENTS.USER_ONLINE, {
+        userId: id,
+        status: 'online',
+        lastSeenAt: null,
+      });
+    }
   }
 
   async handleDisconnect(client: Socket) {
     const userId = client.data.user.id;
+this.logger.debug(`User disconnectingggg issss ${userId}`)
+    this.logger.log('User disconnected');
+
     const conversations = this.typingUsers.get(client.id);
 
-    if (!conversations) return;
-
-    for (const conversationId of conversations) {
-      this.broadcastTyping(client, conversationId, false);
+    if (conversations) {
+      for (const conversationId of conversations) {
+        this.broadcastTyping(client, conversationId, false);
+      }
     }
 
     const becameOffline = await this.presenceService.removeSocket(
@@ -129,9 +156,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (becameOffline) {
       const lastSeenAt = new Date();
 
+      this.logger.log(`User offline at ${lastSeenAt}`);
+
       await this.userService.updateLastSeen(userId, lastSeenAt);
 
-      await this.broadcastPresence(userId, 'USER_OFFLINE', {
+      await this.broadcastPresence(userId, CHAT_EVENTS.USER_OFFLINE, {
         userId,
         status: 'offline',
         lastSeenAt,
@@ -168,6 +197,61 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return { success: true, message };
     } catch (error) {
       throw new WsException(error.message || 'Message sending failed');
+    }
+  }
+
+  @SubscribeMessage(CHAT_EVENTS.EDIT_MESSAGE)
+  async handleEditMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() dto: EditMessageDTO,
+  ) {
+    try {
+      const user = client.data.user;
+
+      const result = await this.messageService.editMessage(user, dto);
+      const updatedMessage = result?.data ?? result;
+
+      const payload = {
+        conversationId: dto.conversationId,
+        message: updatedMessage,
+      };
+
+      this.server
+        .to(`conversation:${dto.conversationId}`)
+        .emit(CHAT_EVENTS.MESSAGE_EDITED, payload);
+
+      this.server.to(`user:${user.id}`).emit(CHAT_EVENTS.MESSAGE_EDITED, payload);
+
+      return { success: true, message: result };
+    } catch (error) {
+      throw new WsException(error.message || 'Message edit failed');
+    }
+  }
+
+  @SubscribeMessage(CHAT_EVENTS.DELETE_MESSAGE)
+  async handleDeleteMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() dto: DeleteMessageDTO,
+  ) {
+    try {
+      const user = client.data.user;
+
+      const result = await this.messageService.deleteMessage(user, dto);
+      const data = result?.data ?? result;
+
+      if (data.scope === 'all') {
+        this.server
+          .to(`conversation:${dto.conversationId}`)
+          .emit(CHAT_EVENTS.MESSAGE_DELETED, data);
+
+        this.server.to(`user:${user.id}`).emit(CHAT_EVENTS.MESSAGE_DELETED, data);
+      } else {
+        this.server.to(`user:${user.id}`).emit(CHAT_EVENTS.MESSAGE_DELETED, data);
+      }
+
+      return { success: true, data: result };
+    } catch (error) {
+      throw new WsException(error.message || 'Message delete failed');
     }
   }
 

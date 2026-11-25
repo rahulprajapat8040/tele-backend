@@ -11,10 +11,16 @@ import {
   Conversation,
   ConversationMember,
   Message,
+  MessageHidden,
   User,
 } from '../database/models';
 import { IAuthUser } from 'src/lib/interfaces/user.interface';
-import { MarkMessagesReadDTO, SendMessageDTO } from './dto/messages.dto';
+import {
+  DeleteMessageDTO,
+  EditMessageDTO,
+  MarkMessagesReadDTO,
+  SendMessageDTO,
+} from './dto/messages.dto';
 import { MessageType } from 'src/lib/enum';
 import { Op, UniqueConstraintError } from 'sequelize';
 import { GetMessageHistoryDTO } from './dto/messages-query.dto';
@@ -30,6 +36,19 @@ import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class MessagesService {
+  private readonly replyToInclude = {
+    model: Message,
+    as: 'replyTo',
+    attributes: ['id', 'content', 'senderId', 'type', 'deletedAt'],
+    include: [
+      {
+        model: User,
+        as: 'sender',
+        attributes: ['id', 'firstName'],
+      },
+    ],
+  };
+
   constructor(
     @InjectModel(Message)
     private readonly messageModel: typeof Message,
@@ -39,6 +58,8 @@ export class MessagesService {
     private readonly conversationMemberModel: typeof ConversationMember,
     @InjectModel(MessageReceipts)
     private readonly messageReceiptModel: typeof MessageReceipts,
+    @InjectModel(MessageHidden)
+    private readonly messageHiddenModel: typeof MessageHidden,
     private readonly usersService: UsersService,
     private readonly sequelize: Sequelize,
   ) {}
@@ -74,8 +95,6 @@ export class MessagesService {
       );
     }
 
-    const sender = await this.usersService.getUserProfile(senderId);
-
     // 4. Check whether message was already submitted.
     const existingMessage = await this.messageModel.findOne({
       where: {
@@ -86,10 +105,35 @@ export class MessagesService {
 
     if (existingMessage) {
       this.validateDuplicateMessage(existingMessage, dto, content);
+      const hydratedMessage = await this.messageModel.findByPk(
+        existingMessage.id,
+        {
+          include: [
+            { model: User, as: 'sender', attributes: ['id', 'firstName'] },
+            this.replyToInclude,
+          ],
+        },
+      );
+
       return responseSender(RESPONSE_MESSAGE.DATA_ADDED, HttpStatus.OK, true, {
-        ...existingMessage.toJSON(),
-        sender,
+        ...hydratedMessage!.toJSON(),
+        receipts: [],
       });
+    }
+
+    if (dto.replyToMessageId) {
+      const replyToMessage = await Message.findOne({
+        where: {
+          id: dto.replyToMessageId,
+          conversationId: dto.conversationId,
+        },
+      });
+
+      if (!replyToMessage) {
+        throw new NotFoundException(
+          'Reply message not found in this conversation',
+        );
+      }
     }
 
     try {
@@ -101,6 +145,7 @@ export class MessagesService {
             clientMessageId: dto.clientMessageId,
             type: dto.type,
             content: content ?? null,
+            replyToMessageId: dto.replyToMessageId ?? null,
           },
           { transaction },
         );
@@ -123,9 +168,16 @@ export class MessagesService {
         }
         return newMessage;
       });
+
+      const hydratedMessage = await this.messageModel.findByPk(message.id, {
+        include: [
+          { model: User, as: 'sender', attributes: ['id', 'firstName'] },
+          this.replyToInclude,
+        ],
+      });
+
       const response = {
-        ...message.toJSON(),
-        sender,
+        ...hydratedMessage!.toJSON(),
         receipts: [],
       };
 
@@ -148,13 +200,23 @@ export class MessagesService {
         if (existing) {
           this.validateDuplicateMessage(existing, dto, content);
 
+          const hydratedMessage = await this.messageModel.findByPk(
+            existing.id,
+            {
+              include: [
+                { model: User, as: 'sender', attributes: ['id', 'firstName'] },
+                this.replyToInclude,
+              ],
+            },
+          );
+
           return responseSender(
             RESPONSE_MESSAGE.DATA_ADDED,
             HttpStatus.OK,
             true,
             {
-              ...existing.toJSON(),
-              sender,
+              ...hydratedMessage!.toJSON(),
+              receipts: [],
             },
           );
         }
@@ -350,7 +412,22 @@ export class MessagesService {
       throw new ForbiddenException('You are not a member of this conversation');
     }
 
+    const hiddenMessages = await this.messageHiddenModel.findAll({
+      attributes: ['messageId'],
+      where: {
+        conversationId,
+        userId: user.id,
+      },
+      raw: true,
+    });
+
+    const hiddenIds = hiddenMessages.map((entry) => entry.messageId);
+
     const where: any = { conversationId };
+
+    if (hiddenIds.length) {
+      where.id = { [Op.notIn]: hiddenIds };
+    }
 
     if (before) {
       const cursor = decodeCursor(before);
@@ -382,6 +459,7 @@ export class MessagesService {
       where,
       include: [
         { model: User, as: 'sender', attributes: ['id', 'firstName'] },
+        this.replyToInclude,
         {
           model: this.messageReceiptModel,
           as: 'receipts',
@@ -660,6 +738,159 @@ export class MessagesService {
     });
   }
 
+  async deleteMessage(user: IAuthUser, dto: DeleteMessageDTO) {
+    const membership = await this.conversationMemberModel.findOne({
+      where: {
+        conversationId: dto.conversationId,
+        userId: user.id,
+        leftAt: null,
+      },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException(
+        'You are not a member of this conversation',
+      );
+    }
+
+    const message = await this.messageModel.findOne({
+      where: {
+        id: dto.messageId,
+        conversationId: dto.conversationId,
+      },
+      paranoid: false,
+    });
+
+    if (!message || message.deletedAt) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (dto.forEveryone) {
+      const deleteWindowMs = 48 * 60 * 60 * 1000;
+      const age = Date.now() - new Date(message.createdAt).getTime();
+
+      if (age > deleteWindowMs) {
+        throw new BadRequestException(
+          'Messages older than 48 hours cannot be deleted for everyone',
+        );
+      }
+
+      await message.destroy();
+
+      return responseSender(RESPONSE_MESSAGE.DATA_UPDATED, HttpStatus.OK, true, {
+        scope: 'all',
+        conversationId: dto.conversationId,
+        messageId: dto.messageId,
+      });
+    }
+
+    await this.messageHiddenModel.findOrCreate({
+      where: {
+        messageId: dto.messageId,
+        userId: user.id,
+      },
+      defaults: {
+        messageId: dto.messageId,
+        userId: user.id,
+        conversationId: dto.conversationId,
+      },
+    });
+
+    return responseSender(RESPONSE_MESSAGE.DATA_UPDATED, HttpStatus.OK, true, {
+      scope: 'me',
+      conversationId: dto.conversationId,
+      messageId: dto.messageId,
+      userId: user.id,
+    });
+  }
+
+  async editMessage(user: IAuthUser, dto: EditMessageDTO) {
+    const content = dto.content?.trim();
+
+    if (!content) {
+      throw new BadRequestException('Message cannot be empty');
+    }
+
+    const message = await this.messageModel.findOne({
+      where: {
+        id: dto.messageId,
+        conversationId: dto.conversationId,
+      },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.senderId !== user.id) {
+      throw new ForbiddenException('You can only edit your own messages');
+    }
+
+    if (message.type !== MessageType.TEXT) {
+      throw new BadRequestException('Only text messages can be edited');
+    }
+
+    const createdAt = new Date(message.createdAt).getTime();
+    const editWindowMs = 24 * 60 * 60 * 1000;
+
+    if (Date.now() - createdAt > editWindowMs) {
+      throw new BadRequestException(
+        'Messages older than 24 hours cannot be edited',
+      );
+    }
+
+    const membership = await this.conversationMemberModel.findOne({
+      where: {
+        conversationId: dto.conversationId,
+        userId: user.id,
+        leftAt: null,
+      },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException(
+        'You are not allowed to edit messages in this conversation',
+      );
+    }
+
+    if (message.content === content) {
+      const unchanged = await this.messageModel.findByPk(message.id, {
+        include: [
+          { model: User, as: 'sender', attributes: ['id', 'firstName'] },
+          this.replyToInclude,
+        ],
+      });
+
+      return responseSender(
+        RESPONSE_MESSAGE.DATA_UPDATED,
+        HttpStatus.OK,
+        true,
+        unchanged!.toJSON(),
+      );
+    }
+
+    const editedAt = new Date();
+
+    await message.update({
+      content,
+      editedAt,
+    });
+
+    const hydratedMessage = await this.messageModel.findByPk(message.id, {
+      include: [
+        { model: User, as: 'sender', attributes: ['id', 'firstName'] },
+        this.replyToInclude,
+      ],
+    });
+
+    return responseSender(
+      RESPONSE_MESSAGE.DATA_UPDATED,
+      HttpStatus.OK,
+      true,
+      hydratedMessage!.toJSON(),
+    );
+  }
+
   async getRecipientUserIds(conversationId: string, senderId: string) {
     const members = await this.conversationMemberModel.findAll({
       attributes: ['userId'],
@@ -750,6 +981,7 @@ export class MessagesService {
           as: 'sender',
           attributes: ['id', 'firstName'],
         },
+        this.replyToInclude,
       ],
       order: [
         ['createdAt', 'ASC'],
@@ -768,7 +1000,8 @@ export class MessagesService {
     if (
       existing.conversationId !== dto.conversationId ||
       existing.type !== dto.type ||
-      existing.content !== content
+      existing.content !== content ||
+      (existing.replyToMessageId ?? null) !== (dto.replyToMessageId ?? null)
     ) {
       throw new ConflictException(
         'clientMessageId has already been used for another message',

@@ -14,6 +14,7 @@ export class PresenceService {
 
     const added = await this.redis.sadd(key, socketId);
     if (!added) return false;
+    console.log('addedddd', added);
 
     const socketCount = await this.redis.scard(key);
 
@@ -23,12 +24,15 @@ export class PresenceService {
   async removeSocket(userId: string, socketId: string): Promise<boolean> {
     const key = this.socketKey(userId);
 
+    console.log('keeeyyyyy', key);
+
     const removed = await this.redis.srem(key, socketId);
+    console.log('removed', removed);
 
     if (!removed) return false;
 
     const remainingSockets = await this.redis.scard(key);
-
+    console.log('remaingggg socketttt', remainingSockets);
     return remainingSockets === 0;
   }
 

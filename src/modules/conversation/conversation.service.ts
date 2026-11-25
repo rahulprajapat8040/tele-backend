@@ -162,9 +162,9 @@ export class ConversationService {
       throw error;
     }
   }
-
   async getMyConversations(query: CommonQueryDTO, user: IAuthUser) {
     const { page, limit, offset } = getPagination(query);
+
     const res = await this.conversationModel.findAndCountAll({
       limit,
       offset,
@@ -172,8 +172,11 @@ export class ConversationService {
       include: [
         {
           model: this.conversationMemberModel,
-          where: { userId: user.id, leftAt: null },
-          attributes: ['id'],
+          where: {
+            userId: user.id,
+            leftAt: null,
+          },
+          attributes: ['id', 'userId'],
           include: [
             {
               model: this.userModel,
@@ -209,6 +212,7 @@ export class ConversationService {
       (conversation: any) => conversation.id,
     );
 
+    // Fetch other participants from all conversations
     const otherMembers = await this.conversationMemberModel.findAll({
       where: {
         conversationId: {
@@ -219,45 +223,71 @@ export class ConversationService {
         },
         leftAt: null,
       },
-      attributes: ['conversationId', 'userId'],
+      attributes: ['id', 'conversationId', 'userId'],
       include: [
         {
           model: this.userModel,
-          attributes: ['id', 'firstName', 'lastName', 'lastSeenAt'],
+          attributes: [
+            'id',
+            'firstName',
+            'lastName',
+            'countryCode',
+            'phoneNo',
+            'lastSeenAt',
+          ],
         },
       ],
     });
 
+    // Get unique participant IDs
     const otherUserIds = [
       ...new Set(otherMembers.map((member: any) => member.userId)),
     ];
 
+    // Fetch online users from presence service
     const onlineUserIds =
       await this.presenceService.getOnlineUsers(otherUserIds);
-
     const onlineSet = new Set(onlineUserIds);
 
+    // Map conversationId -> other participant
+    const otherMemberMap = new Map(
+      otherMembers.map((member: any) => [member.conversationId, member]),
+    );
+
+    // Attach the other participant and their presence to each conversation
     const conversations = decryptedUser.rows.map((conversation: any) => {
-      const participants = otherMembers
-        .filter((member: any) => member.conversationId === conversation.id)
-        .map((member: any) => {
-          const participant = member.user;
+      const otherMember = otherMemberMap.get(conversation.id);
 
-          return {
-            ...participant.toJSON(),
+      if (!otherMember) {
+        return {
+          ...conversation,
+          members: [],
+        };
+      }
 
-            isOnline: onlineSet.has(participant.id),
+      const isOnline = onlineSet.has(otherMember.userId);
+      const memberData =
+        typeof otherMember.toJSON === 'function'
+          ? otherMember.toJSON()
+          : otherMember;
 
-            // Hide last seen when online
-            lastSeenAt: onlineSet.has(participant.id)
-              ? null
-              : participant.lastSeenAt,
-          };
-        });
+      const userData =
+        typeof otherMember.user?.toJSON === 'function'
+          ? otherMember.user.toJSON()
+          : otherMember.user;
 
       return {
         ...conversation,
-        participants,
+        members: [
+          {
+            ...memberData,
+            user: {
+              ...userData,
+              isOnline,
+              lastSeenAt: isOnline ? null : userData.lastSeenAt,
+            },
+          },
+        ],
       };
     });
 
@@ -269,6 +299,7 @@ export class ConversationService {
       page,
       limit,
     );
+
     return responseSender(
       RESPONSE_MESSAGE.DATA_FETCHED,
       HttpStatus.OK,

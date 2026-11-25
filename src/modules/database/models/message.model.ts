@@ -46,6 +46,18 @@ export class Message extends Model<Message, Partial<Message>> {
   @Column(DataType.TEXT)
   declare content: string | null;
 
+  @AllowNull
+  @Column(DataType.UUID)
+  declare replyToMessageId: string | null;
+
+  @AllowNull
+  @Column(DataType.DATE)
+  declare editedAt: Date | null;
+
+  @AllowNull
+  @Column(DataType.DATE)
+  declare deletedForAllAt: Date | null;
+
   @ForeignKey(() => Conversation)
   @Column(DataType.UUID)
   declare conversationId: string;
@@ -62,4 +74,16 @@ export class Message extends Model<Message, Partial<Message>> {
 
   @HasMany(() => MessageReceipts)
   declare receipts: MessageReceipts[];
+
+  @BelongsTo(() => Message, {
+    foreignKey: 'replyToMessageId',
+    as: 'replyTo',
+  })
+  declare replyTo: Message | null;
+
+  @HasMany(() => Message, {
+    foreignKey: 'replyToMessageId',
+    as: 'replies',
+  })
+  declare replies: Message[];
 }
