@@ -7,6 +7,7 @@ import { MessagesModule } from './messages/messages.module';
 import { RedisModule } from './redis/redis.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { persenceModule } from './presence/presence.module';
+import { MediaModule } from './media/media.module';
 
 export const modules = [
   RedisModule,
@@ -18,4 +19,5 @@ export const modules = [
   MessagesModule,
   ChatGatewayModule,
   persenceModule,
+  MediaModule,
 ];

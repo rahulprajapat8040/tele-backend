@@ -6,6 +6,8 @@ import { MessageReceipts } from './message-receipts';
 import { MessageHidden } from './message-hidden.model';
 import { Message } from './message.model';
 import { User } from './user.model';
+import { Media } from './media.model';
+import { MessageMedia } from './message-media.model';
 
 export {
   DeviceInfo,
@@ -15,6 +17,8 @@ export {
   ConversationMember,
   Message,
   MessageHidden,
+  Media,
+  MessageMedia,
 };
 
 export const models = [
@@ -26,4 +30,6 @@ export const models = [
   Message,
   MessageReceipts,
   MessageHidden,
+  Media,
+  MessageMedia,
 ];

@@ -15,6 +15,7 @@ import { Conversation } from './conversation.model';
 import { User } from './user.model';
 import { MessageType } from 'src/lib/enum';
 import { MessageReceipts } from './message-receipts';
+import { MessageMedia } from './message-media.model';
 
 @Table({
   tableName: MODEL_NAME.MESSAGE,
@@ -86,4 +87,7 @@ export class Message extends Model<Message, Partial<Message>> {
     as: 'replies',
   })
   declare replies: Message[];
+
+  @HasMany(() => MessageMedia)
+  declare mediaAttachments: MessageMedia[];
 }

@@ -12,6 +12,7 @@ import { MODEL_NAME } from 'src/lib/constant/model-name.constant';
 import { DeviceInfo } from './device-info.model';
 import { Contact } from './contact.model';
 import { DataTypes } from 'sequelize';
+import { Media } from './media.model';
 
 @Table({ tableName: MODEL_NAME.USER, paranoid: true, timestamps: true })
 export class User extends Model<User, Partial<User>> {
@@ -66,4 +67,7 @@ export class User extends Model<User, Partial<User>> {
 
   @HasMany(() => Contact, 'matchedUserId')
   declare matchedContacts: Contact[];
+
+  @HasMany(() => Media)
+  declare uploadedMedia: Media[];
 }

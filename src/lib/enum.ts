@@ -24,3 +24,21 @@ export enum MessageType {
   DOCUMENT = 'DOCUMENT',
   SYSTEM = 'SYSTEM',
 }
+
+export enum MediaType {
+  IMAGE = 'IMAGE',
+  VIDEO = 'VIDEO',
+  AUDIO = 'AUDIO',
+  DOCUMENT = 'DOCUMENT',
+}
+
+export enum MediaStatus {
+  READY = 'READY',
+  FAILED = 'FAILED',
+}
+
+export enum MediaUploadStatus {
+  UPLOADING = 'UPLOADING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
